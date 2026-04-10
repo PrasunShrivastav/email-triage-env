@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-server = "app.server:app"
+server = "server.app:main"
 
 [project.urls]
 Homepage = "https://huggingface.co/spaces/YOUR_USERNAME/email-triage-env"
