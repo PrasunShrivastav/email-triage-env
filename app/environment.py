@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.email_generator import get_task1_inbox, get_task2_inbox, get_task3_inbox
 from app.models import Email, EmailAction, EmailObservation, EmailReward
-from app.tasks import TASKS, build_grader
+from app.tasks import TASKS, build_grader, clamp
 
 
 class EmailTriageEnv:
@@ -22,7 +22,7 @@ class EmailTriageEnv:
         self.step_count = 0
         self.emails_processed = 0
         self.time_elapsed = 0.0
-        self.cumulative_score = 0.0
+        self.cumulative_score = clamp(0.0)
 
     def reset(self) -> EmailObservation:
         self.inbox, self.label_metadata = self._load_task_data()
@@ -32,7 +32,7 @@ class EmailTriageEnv:
         self.step_count = 0
         self.emails_processed = 0
         self.time_elapsed = 0.0
-        self.cumulative_score = 0.0
+        self.cumulative_score = clamp(0.0)
         self.grader = build_grader(self.task_id, self.inbox, self.label_metadata)
         self.current_email = self._get_next_email()
         return self._build_observation()
@@ -47,9 +47,9 @@ class EmailTriageEnv:
             observation = self._build_observation()
             final_score = self.grader.final_score()
             reward = EmailReward(
-                score=0.0,
+                score=clamp(0.0),
                 cumulative_score=self.cumulative_score,
-                partial_scores={"task_reward": 0.0},
+                partial_scores={"task_reward": clamp(0.0)},
                 feedback="Episode already completed.",
                 done=True,
             )
@@ -88,8 +88,8 @@ class EmailTriageEnv:
             feedback_parts.append("Late-episode time penalty applied.")
 
         raw_score = sum(score_terms.values())
-        clipped_score = max(0.0, min(1.0, raw_score))
-        self.cumulative_score += clipped_score
+        clipped_score = clamp(raw_score)
+        self.cumulative_score = clamp(self.cumulative_score + clipped_score)
 
         self.processed_email_ids.add(current_email.id)
         self.emails_processed = len(self.processed_email_ids)
