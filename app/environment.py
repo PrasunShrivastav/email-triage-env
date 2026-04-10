@@ -53,7 +53,7 @@ class EmailTriageEnv:
                 feedback="Episode already completed.",
                 done=True,
             )
-            return observation, reward, True, {"reason": "no_current_email", "final_score": final_score}
+            return observation, reward, True, {"reason": "no_current_email", "final_score": clamp(final_score)}
 
         current_email = self.current_email
         self.step_count += 1
