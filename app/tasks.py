@@ -6,6 +6,11 @@ from openai import OpenAI
 
 from app.models import Email, EmailAction
 
+
+def clamp(score: float) -> float:
+    """Ensure score is strictly between 0 and 1, never exactly 0.0 or 1.0"""
+    return max(0.0001, min(round(float(score), 4), 0.9999))
+
 TASKS = {
     "task_1": {
         "id": "task_1",
@@ -71,25 +76,25 @@ class Task1Grader:
         if email_id in self.spam_ids:
             if action.action_type in DESTRUCTIVE_ACTIONS:
                 self.removed_spam.add(email_id)
-                return 0.15, {"target_type": "spam", "action_alignment": 1.0}, "Removed spam email."
+                return clamp(0.15), {"target_type": "spam", "action_alignment": 1.0}, "Removed spam email."
             if action.action_type in {"mark_urgent", "flag", "label"}:
-                return -0.05, {"target_type": "spam", "action_alignment": 0.0}, "Spam email was preserved instead of removed."
-            return 0.0, {"target_type": "spam", "action_alignment": 0.0}, "Spam email was not removed."
+                return clamp(-0.05), {"target_type": "spam", "action_alignment": 0.0}, "Spam email was preserved instead of removed."
+            return clamp(0.0), {"target_type": "spam", "action_alignment": 0.0}, "Spam email was not removed."
 
         if email_id in self.legit_ids:
             if action.action_type in DESTRUCTIVE_ACTIONS:
                 self.harmed_legit.add(email_id)
-                return -0.10, {"target_type": "legitimate", "action_alignment": 0.0}, "Legitimate email was deleted or archived."
-            return 0.05, {"target_type": "legitimate", "action_alignment": 1.0}, "Legitimate email was kept."
+                return clamp(-0.10), {"target_type": "legitimate", "action_alignment": 0.0}, "Legitimate email was deleted or archived."
+            return clamp(0.05), {"target_type": "legitimate", "action_alignment": 1.0}, "Legitimate email was kept."
 
-        return 0.0, {"target_type": "unknown", "action_alignment": 0.0}, "Email ID not recognized by Task 1 grader."
+        return clamp(0.0), {"target_type": "unknown", "action_alignment": 0.0}, "Email ID not recognized by Task 1 grader."
 
     def final_score(self) -> float:
         correct_spam_removed = len(self.removed_spam)
         legitimate_kept = len([email_id for email_id in self.legit_ids if email_id not in self.harmed_legit])
         spam_score = (correct_spam_removed / max(len(self.spam_ids), 1)) * 0.7
         legit_score = (legitimate_kept / max(len(self.legit_ids), 1)) * 0.3
-        return min(spam_score + legit_score, 1.0)
+        return clamp(min(spam_score + legit_score, 1.0))
 
 
 class Task2Grader:
@@ -112,22 +117,22 @@ class Task2Grader:
         if action.action_type == "label":
             predicted_label = (action.label or "").strip()
             if not predicted_label:
-                return 0.0, {"label_present": 0.0, "label_correct": 0.0}, "No label provided."
+                return clamp(0.0), {"label_present": 0.0, "label_correct": 0.0}, "No label provided."
             self.agent_labels[email_id] = predicted_label
             if predicted_label == correct_label:
-                return 0.12, {"label_present": 1.0, "label_correct": 1.0}, "Applied the correct label."
-            return 0.02, {"label_present": 1.0, "label_correct": 0.0}, "Applied a label, but it was not correct."
+                return clamp(0.12), {"label_present": 1.0, "label_correct": 1.0}, "Applied the correct label."
+            return clamp(0.02), {"label_present": 1.0, "label_correct": 0.0}, "Applied a label, but it was not correct."
 
         if action.action_type == "mark_urgent":
             if email_id in self.urgent_ids:
                 self.flagged_urgent.add(email_id)
-                return 0.10, {"urgent_marked_correctly": 1.0}, "Marked a truly urgent email."
-            return -0.05, {"urgent_marked_correctly": 0.0}, "Marked a non-urgent email as urgent."
+                return clamp(0.10), {"urgent_marked_correctly": 1.0}, "Marked a truly urgent email."
+            return clamp(-0.05), {"urgent_marked_correctly": 0.0}, "Marked a non-urgent email as urgent."
 
         if action.action_type in {"skip", "archive"} and email_id not in self.agent_labels:
-            return -0.03, {"label_present": 0.0}, "Skipped or archived an email without labeling it."
+            return clamp(-0.03), {"label_present": 0.0}, "Skipped or archived an email without labeling it."
 
-        return 0.0, {"label_present": float(email_id in self.agent_labels)}, "No Task 2 reward change for this action."
+        return clamp(0.0), {"label_present": float(email_id in self.agent_labels)}, "No Task 2 reward change for this action."
 
     def final_score(self) -> float:
         correct_labels = sum(
@@ -136,7 +141,7 @@ class Task2Grader:
         correct_urgent = len(self.flagged_urgent.intersection(self.urgent_ids))
         label_score = (correct_labels / max(len(self.ground_truth), 1)) * 0.6
         urgent_score = (correct_urgent / max(len(self.urgent_ids), 1)) * 0.4
-        return min(label_score + urgent_score, 1.0)
+        return clamp(min(label_score + urgent_score, 1.0))
 
 
 class Task3Grader:
@@ -191,14 +196,14 @@ class Task3Grader:
     def grade_step(self, action: EmailAction) -> tuple[float, dict, str]:
         email = self.inbox.get(action.email_id)
         if email is None:
-            return 0.0, {"reply_mean": 0.0}, "Email ID not recognized by Task 3 grader."
+            return clamp(0.0), {"reply_mean": 0.0}, "Email ID not recognized by Task 3 grader."
 
         if action.action_type != "reply":
-            return -0.05, {"reply_required": 0.0}, "Customer email required a reply."
+            return clamp(-0.05), {"reply_required": 0.0}, "Customer email required a reply."
 
         reply_content = (action.content or "").strip()
         if len(reply_content) < 20:
-            return 0.0, {"reply_mean": 0.0}, "Reply too short"
+            return clamp(0.0), {"reply_mean": 0.0}, "Reply too short"
 
         scores, feedback = self._judge_reply(email, reply_content)
         mean_score = sum(scores.values()) / len(scores)
@@ -211,11 +216,11 @@ class Task3Grader:
             "accuracy": scores["accuracy"],
             "reply_mean": mean_score,
         }
-        return step_reward, partial_scores, feedback
+        return clamp(step_reward), partial_scores, feedback
 
     def final_score(self) -> float:
         total = sum(self.reply_scores.values())
-        return min(total / max(len(self.inbox), 1), 1.0)
+        return clamp(min(total / max(len(self.inbox), 1), 1.0))
 
 
 def build_grader(task_id: str, inbox: List[Email], label_metadata: dict):
