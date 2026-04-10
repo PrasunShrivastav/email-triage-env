@@ -23,7 +23,7 @@ def list_tasks():
 
 
 @app.post("/reset")
-def reset(task_id: str = Query(...), session_id: str | None = Query(None)):
+def reset(task_id: str = Query("task_1"), session_id: str | None = Query(None)):
     active_session_id = session_id or str(uuid4())
     env = EmailTriageEnv(task_id)
     observation = env.reset()
