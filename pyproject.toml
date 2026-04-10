@@ -12,7 +12,11 @@ dependencies = [
     "httpx",
     "numpy",
     "faker",
+    "openenv-core>=0.2.0",
 ]
+
+[project.scripts]
+server = "app.server:app"
 
 [project.urls]
 Homepage = "https://huggingface.co/spaces/YOUR_USERNAME/email-triage-env"
