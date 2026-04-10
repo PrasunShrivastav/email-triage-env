@@ -199,7 +199,7 @@ class Task3Grader:
             scores = {}
             for key in ("relevance", "tone", "completeness", "accuracy"):
                 value = float(parsed.get(key, 0.3))
-                scores[key] = max(0.0, min(value, 1.0))
+                scores[key] = clamp(value)
             return scores, "Reply evaluated by LLM judge."
         except Exception:
             return self._neutral_judgement(), "LLM judge unavailable; used neutral fallback."
