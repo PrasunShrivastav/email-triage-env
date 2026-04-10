@@ -17,7 +17,7 @@ client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
 def clamp_score(score: float) -> float:
-    return max(0.01, min(round(float(score), 4), 0.99))
+    return max(0.05, min(round(float(score), 4), 0.95))
 
 SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox 
 observation as JSON. You must respond with ONLY a valid JSON object representing 
@@ -93,24 +93,22 @@ def run_task(task_id: str, task_description: str) -> float:
                 timeout=60  # Task 3 grader makes LLM calls
             )
             result = r.json()
-            reward = result["reward"]["score"]
+            reward = max(0.05, min(float(result["reward"]["score"]), 0.95))
             done = result["done"]
             obs = result["observation"]
             info = result.get("info", {})
         except Exception as e:
-            reward = 0.01
+            reward = 0.05
             done = True
             info = {"error": str(e)}
-
-        reward = clamp_score(reward)
         total_reward += reward
 
         # 6. Log [STEP] — exact hackathon format
         print(f'[STEP] {{"step": {step_num}, "action": {json.dumps(action_dict)}, "reward": {round(reward, 4)}, "done": {str(done).lower()}, "info": {json.dumps(info)}}}', flush=True)
 
     # Normalize total reward to 0.0-1.0
-    final_score = clamp_score(total_reward / max(step_num, 1))
-    safe_total_reward = clamp_score(total_reward)
+    final_score = max(0.05, min(round(total_reward / max(step_num, 1), 4), 0.95))
+    safe_total_reward = max(0.05, round(total_reward, 4))
     success = final_score >= 0.5
 
     # 7. Log [END] — exact hackathon format

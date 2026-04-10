@@ -9,7 +9,7 @@ from app.models import Email, EmailAction
 
 def clamp(score: float) -> float:
     """Keep score safely inside (0, 1), even after coarse rounding."""
-    return max(0.01, min(round(float(score), 4), 0.99))
+    return max(0.05, min(round(float(score), 4), 0.95))
 
 
 def clamp_scores(values: dict) -> dict:
