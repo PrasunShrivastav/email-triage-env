@@ -104,7 +104,7 @@ def run_task(task_id: str, task_description: str) -> float:
         total_reward += reward
 
         # 6. Log [STEP] — exact hackathon format
-        print(f'[STEP] {{"step": {step_num}, "action": {json.dumps(action_dict)}, "reward": {round(reward, 4)}, "done": {str(done).lower()}, "info": {json.dumps(info)}}}', flush=True)
+        print(f'[STEP] {{"step": {step_num}, "action": {json.dumps(action_dict)}, "reward": {round(reward, 4)}, "done": {str(done).lower()}}}', flush=True)
 
     # Normalize total reward to 0.0-1.0
     final_score = max(0.05, min(round(total_reward / max(step_num, 1), 4), 0.95))
@@ -112,7 +112,7 @@ def run_task(task_id: str, task_description: str) -> float:
     success = final_score >= 0.5
 
     # 7. Log [END] — exact hackathon format
-    print(f'[END] {{"task_id": "{task_id}", "total_reward": {safe_total_reward}, "final_score": {final_score}, "steps": {step_num}, "success": {str(success).lower()}}}', flush=True)
+    print(f'[END] {{"task_id": "{task_id}", "final_score": {final_score}, "steps": {step_num}, "success": {str(success).lower()}}}', flush=True)
 
     return final_score
 
