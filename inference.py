@@ -19,8 +19,9 @@ client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 def clamp_score(score: float) -> float:
     return max(0.05, min(round(float(score), 4), 0.95))
 
-SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox 
-observation as JSON. You must respond with ONLY a valid JSON object representing 
+
+SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox
+observation as JSON. You must respond with ONLY a valid JSON object representing
 your action. No explanation, no markdown, just raw JSON.
 
 Available action_types: reply, archive, delete, flag, label, mark_urgent, snooze, skip
@@ -37,7 +38,7 @@ Your JSON must have these fields:
 Always act on the current_email's id. Be decisive and efficient."""
 
 
-def run_task(task_id: str, task_description: str) -> float:
+def run_task(task_id: str) -> None:
     # 1. Reset environment
     r = httpx.post(f"{ENV_BASE_URL}/reset?task_id={task_id}", timeout=30)
     data = r.json()
@@ -45,16 +46,13 @@ def run_task(task_id: str, task_description: str) -> float:
     obs = data["observation"]
 
     # 2. Log [START]
-    print(json.dumps({"type": "START", "task_id": task_id,
-                      "task_description": task_description,
-                      "model": MODEL_NAME}), flush=True)
-    # Hackathon required format:
-    print(f'[START] {{"task_id": "{task_id}", "task_description": "{task_description}", "model": "{MODEL_NAME}"}}', flush=True)
+    print(f"[START] task={task_id} env=email-triage model={MODEL_NAME}", flush=True)
 
-    total_reward = 0.0
+    rewards = []
     step_num = 0
     done = False
     conversation_history = []
+    error_msg = None
 
     while not done and step_num < 20:
         step_num += 1
@@ -66,6 +64,7 @@ def run_task(task_id: str, task_description: str) -> float:
         conversation_history.append({"role": "user", "content": user_message})
 
         # 4. Call LLM
+        action_type = "skip"
         try:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
@@ -80,57 +79,56 @@ def run_task(task_id: str, task_description: str) -> float:
                     raw = raw[4:]
             action_dict = json.loads(raw.strip())
             conversation_history.append({"role": "assistant", "content": raw})
+            action_type = action_dict.get("action_type", "skip")
         except Exception as e:
             # Fallback action on parse failure
             action_dict = {"action_type": "skip", "email_id": obs["current_email"]["id"]}
             conversation_history.append({"role": "assistant", "content": json.dumps(action_dict)})
+            error_msg = str(e)
+            action_type = "skip"
 
         # 5. Submit action to environment
         try:
             r = httpx.post(
                 f"{ENV_BASE_URL}/step?session_id={session_id}",
                 json=action_dict,
-                timeout=60  # Task 3 grader makes LLM calls
+                timeout=60
             )
             result = r.json()
             reward = max(0.05, min(float(result["reward"]["score"]), 0.95))
             done = result["done"]
             obs = result["observation"]
-            info = result.get("info", {})
+            error_msg = None
         except Exception as e:
             reward = 0.05
             done = True
-            info = {"error": str(e)}
-        total_reward += reward
+            error_msg = str(e)
 
-        # 6. Log [STEP] — exact hackathon format
-        print(f'[STEP] {{"step": {step_num}, "action": {json.dumps(action_dict)}, "reward": {round(reward, 4)}, "done": {str(done).lower()}}}', flush=True)
+        rewards.append(reward)
 
-    # Normalize total reward to 0.0-1.0
-    final_score = max(0.05, min(round(total_reward / max(step_num, 1), 4), 0.95))
-    safe_total_reward = max(0.05, round(total_reward, 4))
+        # 6. Log [STEP]
+        error_str = error_msg if error_msg else "null"
+        print(f"[STEP] step={step_num} action={action_type} reward={reward:.2f} done={str(done).lower()} error={error_str}", flush=True)
+
+    # Calculate final score
+    if rewards:
+        avg_reward = sum(rewards) / len(rewards)
+        final_score = clamp_score(avg_reward)
+    else:
+        final_score = 0.05
+
     success = final_score >= 0.5
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
 
-    # 7. Log [END] — exact hackathon format
-    print(f'[END] {{"task_id": "{task_id}", "final_score": {final_score}, "steps": {step_num}, "success": {str(success).lower()}}}', flush=True)
-
-    return final_score
+    # 7. Log [END]
+    print(f"[END] success={str(success).lower()} steps={step_num} score={final_score:.3f} rewards={rewards_str}", flush=True)
 
 
 def main():
-    tasks = [
-        ("task_1", "Delete or archive all spam emails without touching legitimate ones."),
-        ("task_2", "Label all emails by category and mark the 3 most urgent."),
-        ("task_3", "Reply to all customer emails with appropriate, helpful responses."),
-    ]
+    tasks = ["task_1", "task_2", "task_3"]
 
-    all_scores = {}
-    for task_id, task_desc in tasks:
-        score = run_task(task_id, task_desc)
-        all_scores[task_id] = score
-        print(f'[SUMMARY] {{"task_id": "{task_id}", "score": {score}}}', flush=True)
-
-    print(f'[FINAL] {{"scores": {json.dumps(all_scores)}, "mean_score": {clamp_score(sum(all_scores.values())/3)}}}', flush=True)
+    for task_id in tasks:
+        run_task(task_id)
 
 
 if __name__ == "__main__":
