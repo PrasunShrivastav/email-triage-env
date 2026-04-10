@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.email_generator import get_task1_inbox, get_task2_inbox, get_task3_inbox
 from app.models import Email, EmailAction, EmailObservation, EmailReward
-from app.tasks import TASKS, build_grader, clamp
+from app.tasks import TASKS, build_grader, clamp, clamp_scores
 
 
 class EmailTriageEnv:
@@ -49,7 +49,7 @@ class EmailTriageEnv:
             reward = EmailReward(
                 score=clamp(0.0),
                 cumulative_score=self.cumulative_score,
-                partial_scores={"task_reward": clamp(0.0)},
+                partial_scores=clamp_scores({"task_reward": clamp(0.0)}),
                 feedback="Episode already completed.",
                 done=True,
             )
@@ -61,30 +61,30 @@ class EmailTriageEnv:
 
         task_reward, task_details, task_feedback = self.grader.grade_step(action)
         score_terms = {"task_reward": task_reward}
-        partial_scores = {"task_reward": task_reward, **task_details}
+        partial_scores = clamp_scores({"task_reward": task_reward, **task_details})
         feedback_parts = [task_feedback]
 
         if self.action_counts.get(action.email_id, 0) > 0:
             score_terms["repeated_action_penalty"] = -0.05
-            partial_scores["repeated_action_penalty"] = -0.05
+            partial_scores["repeated_action_penalty"] = clamp(-0.05)
             feedback_parts.append("Repeated action penalty applied.")
         self.action_counts[action.email_id] = self.action_counts.get(action.email_id, 0) + 1
 
         if action.email_id != current_email.id:
             score_terms["wrong_email_penalty"] = -0.1
-            partial_scores["wrong_email_penalty"] = -0.1
+            partial_scores["wrong_email_penalty"] = clamp(-0.1)
             feedback_parts.append("Action email_id did not match the current email.")
 
         invalid_penalty = self._invalid_action_penalty(action)
         if invalid_penalty:
             score_terms["invalid_action_penalty"] = invalid_penalty
-            partial_scores["invalid_action_penalty"] = invalid_penalty
+            partial_scores["invalid_action_penalty"] = clamp(invalid_penalty)
             feedback_parts.append("Invalid action context penalty applied.")
 
         if self.step_count > 20:
             time_penalty = -0.02 * (self.step_count - 20)
             score_terms["time_penalty"] = time_penalty
-            partial_scores["time_penalty"] = time_penalty
+            partial_scores["time_penalty"] = clamp(time_penalty)
             feedback_parts.append("Late-episode time penalty applied.")
 
         raw_score = sum(score_terms.values())

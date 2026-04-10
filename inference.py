@@ -15,6 +15,10 @@ ENV_BASE_URL = os.environ.get("ENV_BASE_URL", "http://localhost:7860")
 
 client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
+
+def clamp_score(score: float) -> float:
+    return max(0.0001, min(round(float(score), 4), 0.9999))
+
 SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox 
 observation as JSON. You must respond with ONLY a valid JSON object representing 
 your action. No explanation, no markdown, just raw JSON.
@@ -94,21 +98,23 @@ def run_task(task_id: str, task_description: str) -> float:
             obs = result["observation"]
             info = result.get("info", {})
         except Exception as e:
-            reward = 0.0
+            reward = 0.0001
             done = True
             info = {"error": str(e)}
 
+        reward = clamp_score(reward)
         total_reward += reward
 
         # 6. Log [STEP] — exact hackathon format
         print(f'[STEP] {{"step": {step_num}, "action": {json.dumps(action_dict)}, "reward": {round(reward, 4)}, "done": {str(done).lower()}, "info": {json.dumps(info)}}}', flush=True)
 
     # Normalize total reward to 0.0-1.0
-    final_score = max(0.0001, min(round(total_reward / max(step_num, 1), 4), 0.9999))
+    final_score = clamp_score(total_reward / max(step_num, 1))
+    safe_total_reward = clamp_score(total_reward)
     success = final_score >= 0.5
 
     # 7. Log [END] — exact hackathon format
-    print(f'[END] {{"task_id": "{task_id}", "total_reward": {round(total_reward, 4)}, "final_score": {final_score}, "steps": {step_num}, "success": {str(success).lower()}}}', flush=True)
+    print(f'[END] {{"task_id": "{task_id}", "total_reward": {safe_total_reward}, "final_score": {final_score}, "steps": {step_num}, "success": {str(success).lower()}}}', flush=True)
 
     return final_score
 
@@ -126,7 +132,7 @@ def main():
         all_scores[task_id] = score
         print(f'[SUMMARY] {{"task_id": "{task_id}", "score": {score}}}', flush=True)
 
-    print(f'[FINAL] {{"scores": {json.dumps(all_scores)}, "mean_score": {round(sum(all_scores.values())/3, 4)}}}', flush=True)
+    print(f'[FINAL] {{"scores": {json.dumps(all_scores)}, "mean_score": {clamp_score(sum(all_scores.values())/3)}}}', flush=True)
 
 
 if __name__ == "__main__":
