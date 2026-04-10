@@ -1,0 +1,22 @@
+[project]
+name = "email-triage-env"
+version = "1.0.0"
+description = "OpenEnv environment for email triage and prioritization"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "openai",
+    "python-dotenv",
+    "httpx",
+    "numpy",
+    "faker",
+]
+
+[project.urls]
+Homepage = "https://huggingface.co/spaces/YOUR_USERNAME/email-triage-env"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:BuildBackend"
