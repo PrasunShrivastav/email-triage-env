@@ -118,7 +118,7 @@ class EmailTriageEnv:
             "label_metadata": self.label_metadata,
         }
         if done:
-            info["final_score"] = clamp(self.grader.final_score())
+            info["final_score"] = max(0.01, min(round(float(self.grader.final_score()), 4), 0.99))
         return observation, reward, done, info
 
     def state(self) -> dict:
