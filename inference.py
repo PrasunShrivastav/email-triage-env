@@ -17,7 +17,7 @@ client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
 def clamp_score(score: float) -> float:
-    return max(0.0001, min(round(float(score), 4), 0.9999))
+    return max(0.01, min(round(float(score), 4), 0.99))
 
 SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox 
 observation as JSON. You must respond with ONLY a valid JSON object representing 
@@ -98,7 +98,7 @@ def run_task(task_id: str, task_description: str) -> float:
             obs = result["observation"]
             info = result.get("info", {})
         except Exception as e:
-            reward = 0.0001
+            reward = 0.01
             done = True
             info = {"error": str(e)}
 
