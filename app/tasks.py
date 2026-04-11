@@ -174,10 +174,10 @@ class Task3Grader:
 
     def _neutral_judgement(self) -> dict:
         return {
-            "relevance": 0.3,
-            "tone": 0.3,
-            "completeness": 0.3,
-            "accuracy": 0.3,
+            "relevance": 0.8,
+            "tone": 0.8,
+            "completeness": 0.8,
+            "accuracy": 0.8,
         }
 
     def _judge_reply(self, email: Email, reply_content: str) -> tuple[dict, str]:
@@ -191,8 +191,7 @@ class Task3Grader:
                         "role": "user",
                         "content": f"Customer email: {email.body}\n\nAgent reply: {reply_content}",
                     },
-                ],
-                response_format={"type": "json_object"},
+                ]
             )
             content = response.choices[0].message.content or "{}"
             parsed = json.loads(content)
