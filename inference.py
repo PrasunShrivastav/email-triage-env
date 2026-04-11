@@ -1,6 +1,6 @@
 """
 Baseline inference script for Email Triage Environment.
-Reads: API_BASE_URL, MODEL_NAME, HF_TOKEN from environment variables.
+Reads: API_BASE_URL, MODEL_NAME, HF_TOKEN, ENV_BASE_URL from environment variables.
 Usage: python3 inference.py
 """
 
@@ -20,22 +20,74 @@ def clamp_score(score: float) -> float:
     return max(0.05, min(round(float(score), 4), 0.95))
 
 
-SYSTEM_PROMPT = """You are an expert email triage agent. You will be given an inbox
-observation as JSON. You must respond with ONLY a valid JSON object representing
-your action. No explanation, no markdown, just raw JSON.
+# Task-specific system prompts for optimal performance on each task
+SYSTEM_PROMPTS = {
+    "task_1": """You are an email spam detection agent.
+Your ONLY job is to DELETE spam and ARCHIVE legitimate emails.
 
-Available action_types: reply, archive, delete, flag, label, mark_urgent, snooze, skip
+Spam indicators: lottery wins, pills/medication offers, inheritance scams,
+job offers from unknown companies, prize claims, urgent money requests,
+"click here" phishing attempts, unsolicited product promotions.
+
+Legitimate indicators: known colleagues, project updates, bills from real services,
+meeting invitations, personal messages from real names, work communications.
+
+Strategy:
+- Use action_type 'delete' for any spam email.
+- Use action_type 'archive' for any legitimate email.
+- Never skip — always act on the current_email.
+- If uncertain, prefer 'archive' over 'delete' to avoid destroying legitimate mail.
+
+Respond with ONLY valid JSON. No explanation, no markdown fences, just raw JSON.
+Example: {"action_type": "delete", "email_id": "task1_email_01"}""",
+
+    "task_2": """You are an email categorization agent.
+Your job is to LABEL every email with the correct category AND mark the 3 most urgent ones.
+
 Available labels: spam, urgent_work, meeting_request, invoice, newsletter, personal
 
-Your JSON must have these fields:
-- action_type: string (required)
-- email_id: string (required, must be the id of current_email)
-- content: string (only for reply actions, min 30 words)
-- label: string (only for label actions)
-- forward_to: string (only for forward actions)
-- snooze_hours: integer (only for snooze actions)
+Label assignment rules:
+- spam: Unsolicited, promotional, or scam content.
+- urgent_work: Work tasks with deadlines, critical bugs, escalations, or time-sensitive requests.
+- meeting_request: Calendar invites, scheduling requests, or meeting notifications.
+- invoice: Bills, payment receipts, or financial documents from services.
+- newsletter: Mailing lists, product updates, content digests.
+- personal: Non-work messages from friends, family, or personal contacts.
 
-Always act on the current_email's id. Be decisive and efficient."""
+Urgency rules (mark_urgent):
+- Only mark an email urgent AFTER labeling it if it is urgent_work AND seems truly critical.
+- Look for signals: "ASAP", "deadline today", "production down", "critical", escalating language.
+- Only the top 3 most critical emails should receive mark_urgent.
+
+Strategy per email:
+1. First use action_type 'label' with the correct label.
+2. If the email is urgent_work and clearly critical, also use mark_urgent in a follow-up step.
+
+Respond with ONLY valid JSON. No explanation, no markdown fences, just raw JSON.
+Example: {"action_type": "label", "email_id": "task2_email_03", "label": "meeting_request"}""",
+
+    "task_3": """You are a professional customer support agent.
+Your job is to REPLY to every customer email with a helpful, empathetic, and complete response.
+
+Requirements for a high-scoring reply:
+- Address the customer's specific issue directly — do not give a generic response.
+- Use a professional yet warm and empathetic tone.
+- Provide concrete next steps, a resolution, or a clear acknowledgment of the problem.
+- If it's a follow-up email (references a previous interaction), explicitly acknowledge the prior contact.
+- Minimum 50 words, maximum 150 words.
+- Do not make promises you cannot verify (e.g. exact timelines unless stated in the email).
+- End with a courteous closing and an offer to assist further.
+
+Always use action_type 'reply' with a 'content' field containing your full response.
+
+Respond with ONLY valid JSON. No explanation, no markdown fences, just raw JSON.
+Example:
+{
+  "action_type": "reply",
+  "email_id": "task3_email_02",
+  "content": "Thank you for reaching out to us. I understand your frustration with the delayed shipment and sincerely apologize for the inconvenience. Your order has been escalated to our logistics team and you will receive an updated tracking number within 24 hours. Please don't hesitate to contact us if you need further assistance."
+}"""
+}
 
 
 def run_task(task_id: str) -> None:
@@ -54,6 +106,9 @@ def run_task(task_id: str) -> None:
     conversation_history = []
     error_msg = None
 
+    # Select the task-specific system prompt
+    system_prompt = SYSTEM_PROMPTS.get(task_id, SYSTEM_PROMPTS["task_1"])
+
     while not done and step_num < 20:
         step_num += 1
 
@@ -63,13 +118,16 @@ def run_task(task_id: str) -> None:
 
         conversation_history.append({"role": "user", "content": user_message})
 
-        # 4. Call LLM
+        # Keep only the last 3 pairs (6 messages) to avoid token bloat
+        conversation_history = conversation_history[-6:]
+
+        # 4. Call LLM with task-specific system prompt
         action_type = "skip"
         try:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
                 max_tokens=500,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}] + conversation_history
+                messages=[{"role": "system", "content": system_prompt}] + conversation_history
             )
             raw = response.choices[0].message.content.strip()
             # Strip markdown fences if present
