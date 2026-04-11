@@ -59,11 +59,15 @@ SPAM_SUBJECT_KEYWORDS = {
     "crypto",
 }
 TASK3_SYSTEM_PROMPT = (
-    "You are an expert customer support evaluator. Score the following reply on 4 criteria, "
-    "each 0.0-1.0: relevance (does it address the customer's issue?), tone (is it professional "
-    "and empathetic?), completeness (does it fully resolve or acknowledge the issue?), "
-    "accuracy (no false promises or wrong info?). Respond ONLY with valid JSON: "
-    '{"relevance": 0.0, "tone": 0.0, "completeness": 0.0, "accuracy": 0.0}'
+    "You are evaluating customer support email replies. "
+    "Score each reply 0.0-1.0 on these criteria:\n"
+    "- relevance (0.0-1.0): Does it address the customer's issue?\n"
+    "- tone (0.0-1.0): Is it professional and empathetic?\n"
+    "- completeness (0.0-1.0): Does it acknowledge and attempt to resolve the issue?\n"
+    "- accuracy (0.0-1.0): Is it factually reasonable with no false promises?\n\n"
+    "Be GENEROUS - a decent reply that addresses the issue should score 0.6-0.8. "
+    "Only score below 0.4 if the reply is completely irrelevant or hostile. "
+    'Respond ONLY with valid JSON: {"relevance": 0.0, "tone": 0.0, "completeness": 0.0, "accuracy": 0.0}'
 )
 
 

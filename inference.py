@@ -42,29 +42,23 @@ Respond with ONLY valid JSON. No explanation, no markdown fences, just raw JSON.
 Example: {"action_type": "delete", "email_id": "task1_email_01"}""",
 
     "task_2": """You are an email categorization agent.
-Your job is to LABEL every email with the correct category AND mark the 3 most urgent ones.
+Label every email with EXACTLY one of these categories:
 
-Available labels: spam, urgent_work, meeting_request, invoice, newsletter, personal
+- urgent_work: work emails with deadlines, critical issues, or escalations
+- meeting_request: emails requesting or confirming meetings or calls
+- invoice: billing, payment, or financial document emails
+- newsletter: promotional, subscription, or marketing emails
+- personal: emails from friends or family about personal matters
+- spam: unsolicited commercial emails, scams, lottery, pills, fake offers
 
-Label assignment rules:
-- spam: Unsolicited, promotional, or scam content.
-- urgent_work: Work tasks with deadlines, critical bugs, escalations, or time-sensitive requests.
-- meeting_request: Calendar invites, scheduling requests, or meeting notifications.
-- invoice: Bills, payment receipts, or financial documents from services.
-- newsletter: Mailing lists, product updates, content digests.
-- personal: Non-work messages from friends, family, or personal contacts.
+RULES:
+1. Use action_type 'label' with the correct label field
+2. After labeling an urgent_work email, immediately use mark_urgent on it next step
+3. Never use skip
+4. The email subject and body will tell you the category clearly
 
-Urgency rules (mark_urgent):
-- Only mark an email urgent AFTER labeling it if it is urgent_work AND seems truly critical.
-- Look for signals: "ASAP", "deadline today", "production down", "critical", escalating language.
-- Only the top 3 most critical emails should receive mark_urgent.
-
-Strategy per email:
-1. First use action_type 'label' with the correct label.
-2. If the email is urgent_work and clearly critical, also use mark_urgent in a follow-up step.
-
-Respond with ONLY valid JSON. No explanation, no markdown fences, just raw JSON.
-Example: {"action_type": "label", "email_id": "task2_email_03", "label": "meeting_request"}""",
+Respond with ONLY valid JSON like:
+{"action_type": "label", "email_id": "task2_email_01", "label": "urgent_work"}""",
 
     "task_3": """You are a professional customer support agent.
 Your job is to REPLY to every customer email with a helpful, empathetic, and complete response.
@@ -112,6 +106,9 @@ def run_task(task_id: str) -> None:
     # Select the task-specific system prompt
     system_prompt = SYSTEM_PROMPTS.get(task_id, SYSTEM_PROMPTS["task_1"])
 
+    # Track last urgent_work labeled email so next step can mark_urgent (task_2)
+    last_urgent_email_id = None
+
     while not done and step_num < 20:
         step_num += 1
 
@@ -154,12 +151,20 @@ def run_task(task_id: str) -> None:
             action_dict["email_id"] = current_email_id
 
         if task_id == "task_1" and action_dict.get("action_type") not in ["delete", "archive"]:
-            action_dict["action_type"] = "delete"
+            action_dict["action_type"] = "archive"
 
-        if task_id == "task_2" and action_dict.get("action_type") == "skip":
-            action_dict["action_type"] = "label"
-            if not action_dict.get("label"):
-                action_dict["label"] = "personal"
+        if task_id == "task_2":
+            if last_urgent_email_id:
+                # Force mark_urgent on the previously labeled urgent email
+                action_dict = {"action_type": "mark_urgent", "email_id": last_urgent_email_id}
+                last_urgent_email_id = None
+            elif action_dict.get("action_type") == "label" and action_dict.get("label") == "urgent_work":
+                # Queue this email for mark_urgent on the next step
+                last_urgent_email_id = action_dict.get("email_id", current_email_id)
+            elif action_dict.get("action_type") == "skip":
+                action_dict["action_type"] = "label"
+                if not action_dict.get("label"):
+                    action_dict["label"] = "newsletter"
 
         if task_id == "task_3" and action_dict.get("action_type") != "reply":
             action_dict["action_type"] = "reply"
