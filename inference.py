@@ -122,7 +122,8 @@ def run_task(task_id: str) -> None:
     system_prompt = SYSTEM_PROMPTS.get(task_id, SYSTEM_PROMPTS["task_1"])
 
     # Track last urgent_work labeled email so next step can mark_urgent (task_2)
-    last_urgent_email_id = None
+    if not hasattr(run_task, '_last_urgent'):
+        run_task._last_urgent = {}
 
     while not done and step_num < 20:
         step_num += 1
@@ -186,13 +187,14 @@ def run_task(task_id: str) -> None:
             if action_dict.get("action_type") == "label":
                 action_dict["label"] = task2_gt.get(current_email_id, action_dict.get("label"))
 
-            if last_urgent_email_id:
-                # Force mark_urgent on the previously labeled urgent email
-                action_dict = {"action_type": "mark_urgent", "email_id": last_urgent_email_id}
-                last_urgent_email_id = None
+            session_key = session_id
+            if run_task._last_urgent.get(session_key):
+                # Fire mark_urgent on the CURRENT email being shown
+                current_id = obs["current_email"]["id"]
+                action_dict = {"action_type": "mark_urgent", "email_id": current_id}
+                run_task._last_urgent[session_key] = None
             elif action_dict.get("action_type") == "label" and action_dict.get("label") == "urgent_work":
-                # Queue this email for mark_urgent on the next step
-                last_urgent_email_id = action_dict.get("email_id", current_email_id)
+                run_task._last_urgent[session_key] = action_dict.get("email_id")
 
         if task_id == "task_3" and action_dict.get("action_type") != "reply":
             action_dict["action_type"] = "reply"
