@@ -51,11 +51,26 @@ Label every email with EXACTLY one of these categories:
 - personal: emails from friends or family about personal matters
 - spam: unsolicited commercial emails, scams, lottery, pills, fake offers
 
+EXAMPLES (use these to calibrate):
+- "Urgent: production access request needs approval" → urgent_work
+- "Please review the exec brief before 4 PM" → urgent_work
+- "Need sign-off on contract changes today" → urgent_work
+- "Roadmap sync next Tuesday" → meeting_request
+- "Can we book time for the vendor demo?" → meeting_request
+- "Invoice INV-2048 for monthly hosting" → invoice
+- "Consulting invoice for March design support" → invoice
+- "Product Ops Weekly: top stories and templates" → newsletter
+- "SaaS Benchmarks Digest for April" → newsletter
+- "Are you free for dinner on Friday?" → personal
+- "Photos from the weekend trip" → personal
+- "Claim your tax refund in minutes" → spam
+- "Gift card verification needed" → spam
+- "Private trading method that beats the market" → spam
+
 RULES:
 1. Use action_type 'label' with the correct label field
 2. After labeling an urgent_work email, immediately use mark_urgent on it next step
 3. Never use skip
-4. The email subject and body will tell you the category clearly
 
 Respond with ONLY valid JSON like:
 {"action_type": "label", "email_id": "task2_email_01", "label": "urgent_work"}""",
