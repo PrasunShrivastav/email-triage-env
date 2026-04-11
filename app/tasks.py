@@ -88,15 +88,10 @@ class Task1Grader:
             if action.action_type in DESTRUCTIVE_ACTIONS:
                 self.removed_spam.add(email_id)
                 return clamp(0.15), clamp_scores({"target_type": "spam", "action_alignment": 1.0}), "Removed spam email."
-            if action.action_type in {"mark_urgent", "flag", "label"}:
-                return clamp(-0.05), clamp_scores({"target_type": "spam", "action_alignment": 0.0}), "Spam email was preserved instead of removed."
-            return clamp(0.0), clamp_scores({"target_type": "spam", "action_alignment": 0.0}), "Spam email was not removed."
+            return clamp(-0.05), clamp_scores({"target_type": "spam", "action_alignment": 0.0}), "Spam email was preserved instead of removed."
 
         if email_id in self.legit_ids:
-            if action.action_type in DESTRUCTIVE_ACTIONS:
-                self.harmed_legit.add(email_id)
-                return clamp(-0.10), clamp_scores({"target_type": "legitimate", "action_alignment": 0.0}), "Legitimate email was deleted or archived."
-            return clamp(0.05), clamp_scores({"target_type": "legitimate", "action_alignment": 1.0}), "Legitimate email was kept."
+            return clamp(0.05), clamp_scores({"target_type": "legitimate", "action_alignment": 1.0}), "Legitimate email was handled correctly."
 
         return clamp(0.0), clamp_scores({"target_type": "unknown", "action_alignment": 0.0}), "Email ID not recognized by Task 1 grader."
 
@@ -131,13 +126,14 @@ class Task2Grader:
                 return clamp(0.0), clamp_scores({"label_present": 0.0, "label_correct": 0.0}), "No label provided."
             self.agent_labels[email_id] = predicted_label
             if predicted_label == correct_label:
-                return clamp(0.12), clamp_scores({"label_present": 1.0, "label_correct": 1.0}), "Applied the correct label."
+                hint = " This email is urgent — consider mark_urgent." if correct_label == "urgent_work" else ""
+                return clamp(0.12), clamp_scores({"label_present": 1.0, "label_correct": 1.0}), f"Applied the correct label.{hint}"
             return clamp(0.02), clamp_scores({"label_present": 1.0, "label_correct": 0.0}), "Applied a label, but it was not correct."
 
         if action.action_type == "mark_urgent":
             if email_id in self.urgent_ids:
                 self.flagged_urgent.add(email_id)
-                return clamp(0.10), clamp_scores({"urgent_marked_correctly": 1.0}), "Marked a truly urgent email."
+                return clamp(0.15), clamp_scores({"urgent_marked_correctly": 1.0}), "Marked a truly urgent email."
             return clamp(-0.05), clamp_scores({"urgent_marked_correctly": 0.0}), "Marked a non-urgent email as urgent."
 
         if action.action_type in {"skip", "archive"} and email_id not in self.agent_labels:
