@@ -17,7 +17,7 @@ client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
 def clamp_score(score: float) -> float:
-    return max(0.05, min(round(float(score), 4), 0.95))
+    return max(0.001, min(round(float(score), 4), 0.999))
 
 
 # Task-specific system prompts for optimal performance on each task
@@ -153,12 +153,12 @@ def run_task(task_id: str) -> None:
                 timeout=60
             )
             result = r.json()
-            reward = max(0.05, min(float(result["reward"]["score"]), 0.95))
+            reward = max(0.001, min(float(result["reward"]["score"]), 0.999))
             done = result["done"]
             obs = result["observation"]
             error_msg = None
         except Exception as e:
-            reward = 0.05
+            reward = 0.001
             done = True
             error_msg = str(e)
 
@@ -173,7 +173,7 @@ def run_task(task_id: str) -> None:
         avg_reward = sum(rewards) / len(rewards)
         final_score = clamp_score(avg_reward)
     else:
-        final_score = 0.05
+        final_score = 0.001
 
     success = final_score >= 0.5
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)

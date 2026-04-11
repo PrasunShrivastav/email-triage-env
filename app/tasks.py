@@ -8,8 +8,8 @@ from app.models import Email, EmailAction
 
 
 def clamp(score: float) -> float:
-    """Keep score safely inside (0, 1), even after coarse rounding."""
-    return max(0.05, min(round(float(score), 4), 0.95))
+    """Keep score strictly inside (0, 1) exclusive with minimal margin."""
+    return max(0.001, min(round(float(score), 4), 0.999))
 
 
 def clamp_scores(values: dict) -> dict:
