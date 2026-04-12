@@ -14,7 +14,7 @@ pinned: false
 [![OpenEnv Compatible](https://img.shields.io/badge/OpenEnv-compatible-4B8BBE?style=flat-square&logo=python&logoColor=white)](https://openenv.dev)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Docker Ready](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
-[![HF Space Live](https://img.shields.io/badge/HF%20Space-live-FF9D00?style=flat-square&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/PrasunShrivastav/email-triage-env)
+[![HF Space Live](https://img.shields.io/badge/HF%20Space-live-FF9D00?style=flat-square&logo=huggingface&logoColor=white)](https://huggingface.co/spaces/PrasunPragya/email-triage-env)
 
 ---
 
