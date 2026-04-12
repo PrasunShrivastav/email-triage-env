@@ -1,7 +1,36 @@
 name: email-triage-env
-version: 1.0.0
+version: "1.0.0"
+description: "Real-world email triage environment for training and evaluating AI agents on classification, prioritization, and customer support response generation."
+tags:
+  - openenv
+  - email
+  - triage
+  - nlp
+  - real-world
+  - classification
+  - customer-support
 entrypoint: app.server:app
 tasks:
-  - task_1
-  - task_2
-  - task_3
+  - id: task_1
+    name: Spam Cleanup
+    difficulty: easy
+    description: Delete or archive all spam emails without touching legitimate ones.
+    max_steps: 30
+    reward_range: [0.001, 0.999]
+  - id: task_2
+    name: Priority Inbox Sorting
+    difficulty: medium
+    description: Label all emails by category and mark the 3 most urgent work emails.
+    max_steps: 30
+    reward_range: [0.001, 0.999]
+  - id: task_3
+    name: Customer Support Response
+    difficulty: hard
+    description: Reply to all customer emails with appropriate, empathetic, and helpful responses. Graded by LLM-as-judge.
+    max_steps: 30
+    reward_range: [0.001, 0.999]
+observation_space: EmailObservation
+action_space: EmailAction
+reward_range: [0.001, 0.999]
+reproducible: true
+seed: 42

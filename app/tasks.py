@@ -177,10 +177,10 @@ class Task3Grader:
 
     def _neutral_judgement(self) -> dict:
         return {
-            "relevance": 0.8,
-            "tone": 0.8,
-            "completeness": 0.8,
-            "accuracy": 0.8,
+            "relevance": 0.35,
+            "tone": 0.35,
+            "completeness": 0.35,
+            "accuracy": 0.35,
         }
 
     def _judge_reply(self, email: Email, reply_content: str) -> tuple[dict, str]:
