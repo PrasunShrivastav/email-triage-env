@@ -89,12 +89,9 @@ class Task1Grader:
     def grade_step(self, action: EmailAction) -> tuple[float, dict, str]:
         email_id = action.email_id
         if email_id in self.spam_ids:
-            if action.action_type == "delete":
+            if action.action_type in ["delete", "archive"]:
                 self.removed_spam.add(email_id)
-                return clamp(0.15), clamp_scores({"target_type": "spam", "action_alignment": 1.0}), "Deleted spam email."
-            elif action.action_type == "archive":
-                self.removed_spam.add(email_id)
-                return clamp(0.10), clamp_scores({"target_type": "spam", "action_alignment": 0.8}), "Archived spam email."
+                return clamp(0.15), clamp_scores({"target_type": "spam", "action_alignment": 1.0}), f"Correctly removed spam email via {action.action_type}."
             return clamp(-0.05), clamp_scores({"target_type": "spam", "action_alignment": 0.0}), "Spam email was preserved instead of removed."
 
         if email_id in self.legit_ids:
